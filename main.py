@@ -2,7 +2,10 @@ import ffmpeg
 import logging
 import time
 import json
+import argparse
 from you_get.common import get_content, match1
+
+
 def showroom_get_roomid_by_room_url_key(room_url_key):
     """str->str"""
     fake_headers_mobile = {
@@ -18,28 +21,68 @@ def showroom_get_roomid_by_room_url_key(room_url_key):
     assert roomid
     return roomid
 
-room_url_key = 'ME_HANA_OGI'
 
-room_id = showroom_get_roomid_by_room_url_key(room_url_key)
-while True:
-    timestamp = str(int(time.time() * 1000))
-    api_endpoint = 'https://www.showroom-live.com/api/live/streaming_url?room_id={room_id}&_={timestamp}'.format(
-        room_id=room_id, timestamp=timestamp)
-    html = get_content(api_endpoint)
-    html = json.loads(html)
-    if len(html) >= 1:
-        break
-    logging.w('The live show is currently offline.')
-    time.sleep(1)
+if __name__ == "__main__":
 
-stream_url = [i['url'] for i in html['streaming_url_list']
-              if i['is_default'] and i['type'] == 'hls'][0]
+    parser = argparse.ArgumentParser(
+        description='rebroadcast showroom live stream.')
+    parser.add_argument('-i', '--id', help='Only monitor this one showroom id.',
+                        metavar='SHOWROOM_ID', dest='sr_id')
+    parser.add_argument('-o', '--output_url', help='Target RTMP address。',
+                        metavar='OUTPUT_URL', dest='output_url')
 
-output = 'rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_12814697_5336514&key=acd42d735baaad7951e71d5a9e3a2017&schedule=rtmp&pflag=1'
-(
-    ffmpeg
-    .input(stream_url)
-    .output(output, **{'vcodec': 'copy', 'acodec': 'copy', 'f': 'flv', 'bufsize': '3000k'})
-    .global_args("-re")
-    .run()
-)
+    args = parser.parse_args()
+
+    if (args.sr_id == None):
+        print('Please input a showroom id.')
+        exit(1)
+    if (args.output_url == None):
+        print('Please input a output url.')
+        exit(1)
+
+    room_url_key = args.sr_id
+    output = args.output_url
+
+    room_id = showroom_get_roomid_by_room_url_key(room_url_key)
+
+    while True:
+        timestamp = str(int(time.time() * 1000))
+        api_endpoint = 'https://www.showroom-live.com/api/live/streaming_url?room_id={room_id}&_={timestamp}'.format(
+            room_id=room_id, timestamp=timestamp)
+        html = get_content(api_endpoint)
+        html = json.loads(html)
+        if len(html) >= 1:
+            break
+        logging.warning('The live show is currently offline.')
+        time.sleep(1)
+
+    stream_url = [i['url'] for i in html['streaming_url_list']
+                  if i['is_default'] and i['type'] == 'hls'][0]
+
+    logging.info('The live show is currently online.')
+    logging.debug('Start to rebroadcast. from {stream_url} to {output}'.format(
+        stream_url=stream_url, output=output))
+
+    kwargs_dict = {'vcodec': 'libx264',
+                   'acodec': 'aac',
+                   'maxrate': '1.2M',
+                   'b:v': '1M',
+                   'b:a': '128k',
+                   'aac_coder': 'twoloop',
+                   'f': 'flv',
+                   'preset': 'ultrafast',
+                   'bufsize': '256M',
+                   'loglevel': 'error',
+                   'g': '125',}
+    try:
+        proc = (
+            ffmpeg
+            .input(stream_url,re=None)
+            .output(output, **kwargs_dict)
+            .run()
+        )
+    except KeyboardInterrupt:
+        try:
+            proc.stdin.write('q'.encode('utf-8'))
+        except:
+            pass
