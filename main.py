@@ -39,7 +39,7 @@ output = 'rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_12814697_5336
 (
     ffmpeg
     .input(stream_url)
-    .output(output, **{'vcodec': 'copy', 'acodec': 'copy', 'f': 'flv'})
+    .output(output, **{'vcodec': 'copy', 'acodec': 'copy', 'f': 'flv', 'bufsize': '3000k'})
     .global_args("-re")
     .run()
 )
