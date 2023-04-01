@@ -23,6 +23,16 @@ def showroom_get_roomid_by_room_url_key(room_url_key):
 
 
 if __name__ == "__main__":
+    # build logging
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG)
+
+    consoleHandler = logging.StreamHandler()
+    consoleFmt = logging.Formatter(
+        fmt='%(asctime)s %(message)s', datefmt='%H:%M:%S')
+    consoleHandler.setFormatter(consoleFmt)
+    consoleHandler.setLevel(logging.DEBUG)
+    log.addHandler(consoleHandler)
 
     parser = argparse.ArgumentParser(
         description='rebroadcast showroom live stream.')
