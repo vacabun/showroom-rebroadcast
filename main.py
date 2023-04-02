@@ -1,31 +1,17 @@
-import ffmpeg
 import logging
-import time
-import json
 import argparse
-from you_get.common import get_content, match1
+import config
+import rebroadcast
+import os
+import time
+import threading
 
-
-def showroom_get_roomid_by_room_url_key(room_url_key):
-    """str->str"""
-    fake_headers_mobile = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Charset': 'UTF-8,*;q=0.5',
-        'Accept-Encoding': 'gzip,deflate,sdch',
-        'Accept-Language': 'en-US,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36'
-    }
-    webpage_url = 'https://www.showroom-live.com/' + room_url_key
-    html = get_content(webpage_url, headers=fake_headers_mobile)
-    roomid = match1(html, r'room\?room_id\=(\d+)')
-    assert roomid
-    return roomid
-
+os.chdir(os.path.dirname(__file__))
 
 if __name__ == "__main__":
     # build logging
     log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
+    log.setLevel(logging.INFO)
 
     consoleHandler = logging.StreamHandler()
     consoleFmt = logging.Formatter(
@@ -43,56 +29,29 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    settings = config.readSettingsFile('config.ini')
+
     if (args.sr_id == None):
-        print('Please input a showroom id.')
-        exit(1)
+        room_url_key = settings['room_url_key']
+    else:
+        room_url_key = args.sr_id
+
     if (args.output_url == None):
-        print('Please input a output url.')
-        exit(1)
-
-    room_url_key = args.sr_id
-    output = args.output_url
-
-    room_id = showroom_get_roomid_by_room_url_key(room_url_key)
+        output = settings['sever_url'] + settings['stream_key']
+    else:
+        output = args.output_url
+    
+    rb = rebroadcast.Rebroadcaster(room_url_key, output, None)
 
     while True:
-        timestamp = str(int(time.time() * 1000))
-        api_endpoint = 'https://www.showroom-live.com/api/live/streaming_url?room_id={room_id}&_={timestamp}'.format(
-            room_id=room_id, timestamp=timestamp)
-        html = get_content(api_endpoint)
-        html = json.loads(html)
-        if len(html) >= 1:
-            break
-        logging.warning('The live show is currently offline.')
-        time.sleep(1)
-
-    stream_url = [i['url'] for i in html['streaming_url_list']
-                  if i['is_default'] and i['type'] == 'hls'][0]
-
-    logging.info('The live show is currently online.')
-    logging.debug('Start to rebroadcast. from {stream_url} to {output}'.format(
-        stream_url=stream_url, output=output))
-
-    kwargs_dict = {'vcodec': 'libx264',
-                   'acodec': 'aac',
-                   'maxrate': '1.2M',
-                   'b:v': '1M',
-                   'b:a': '128k',
-                   'aac_coder': 'twoloop',
-                   'f': 'flv',
-                   'preset': 'ultrafast',
-                   'bufsize': '256M',
-                   'loglevel': 'error',
-                   'g': '125',}
-    try:
-        proc = (
-            ffmpeg
-            .input(stream_url,re=None)
-            .output(output, **kwargs_dict)
-            .run()
-        )
-    except KeyboardInterrupt:
         try:
-            proc.stdin.write('q'.encode('utf-8'))
-        except:
-            pass
+            if(rb.isbroadcast == False and rebroadcast.showroom_is_online(room_url_key)):
+                rb.start()
+            time.sleep(1)
+        except KeyboardInterrupt:
+            logging.info('quitting jobs...')
+            logging.info("bye")
+            break
+
+            
+
