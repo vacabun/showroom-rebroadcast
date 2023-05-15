@@ -38,20 +38,27 @@ def showroom_rebroadcast(room_url_key, output):
                    'loglevel': 'error',
                    'g': '125',}
     try:
-        (
+        proc = (
             ffmpeg
             .input(stream_url,re = None)
             .output(output, **kwargs_dict)
             .global_args('-re')
             .run()
         )
+        stdout, stderr = proc.communicate()
+        
     except KeyboardInterrupt:
         try:
             proc.stdin.write('q'.encode('utf-8'))
         except:
             pass
-    except BaseException as e:
-        raise e
+    except Exception as e:
+        try:
+            proc.stdin.write('q'.encode('utf-8'))
+        except:
+            pass
+        raise BaseException('ffmpeg finish.')
+    return True
 
 
 class Rebroadcaster:

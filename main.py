@@ -6,8 +6,6 @@ import os
 import time
 import threading
 
-os.chdir(os.path.dirname(__file__))
-
 if __name__ == "__main__":
     # build logging
     log = logging.getLogger()
