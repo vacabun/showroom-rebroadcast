@@ -2,12 +2,10 @@ import logging
 import argparse
 import config
 import rebroadcast
-import os
 import time
-import threading
+
 
 if __name__ == "__main__":
-    # build logging
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
@@ -29,27 +27,26 @@ if __name__ == "__main__":
 
     settings = config.readSettingsFile('config.ini')
 
-    if (args.sr_id == None):
+    if args.sr_id is None:
         room_url_key = settings['room_url_key']
     else:
         room_url_key = args.sr_id
 
-    if (args.output_url == None):
+    if args.output_url is None:
         output = settings['sever_url'] + settings['stream_key']
     else:
         output = args.output_url
-    
+
     rb = rebroadcast.Rebroadcaster(room_url_key, output, None)
 
     while True:
         try:
-            if(rb.isbroadcast == False and rebroadcast.showroom_is_online(room_url_key)):
-                rb.start()
-            time.sleep(1)
+            if rb.isbroadcast is False:
+                if rebroadcast.showroom_is_online(room_url_key):
+                    rb.start()
+            time.sleep(30)
         except KeyboardInterrupt:
-            logging.info('quitting jobs...')
             logging.info("bye")
             break
-
-            
-
+        except Exception as e:
+            logging.error(e)

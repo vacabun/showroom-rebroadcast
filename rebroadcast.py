@@ -2,11 +2,10 @@ import threading
 import logging
 import ffmpeg
 import streamlink
-import subprocess
 
 
 def showroom_is_online(room_url_key):
-    url = 'https://www.showroom-live.com/r/{room_url_key}'.format(
+    url = 'https://www.showroom-live.com/{room_url_key}'.format(
         room_url_key=room_url_key)
     streams = streamlink.streams(url)
     if not streams:
@@ -16,7 +15,7 @@ def showroom_is_online(room_url_key):
 
 
 def showroom_rebroadcast(room_url_key, output):
-    url = 'https://www.showroom-live.com/r/{room_url_key}'.format(
+    url = 'https://www.showroom-live.com/{room_url_key}'.format(
         room_url_key=room_url_key)
 
     stream_quality = "best"
@@ -36,26 +35,25 @@ def showroom_rebroadcast(room_url_key, output):
                    'preset': 'veryslow',
                    'bufsize': '512M',
                    'loglevel': 'error',
-                   'g': '125',}
+                   'g': '125'}
     try:
         proc = (
             ffmpeg
-            .input(stream_url,re = None)
+            .input(stream_url, re=None)
             .output(output, **kwargs_dict)
             .global_args('-re')
             .run()
         )
-        stdout, stderr = proc.communicate()
-        
+        proc.communicate()
     except KeyboardInterrupt:
         try:
             proc.stdin.write('q'.encode('utf-8'))
-        except:
+        except Exception:
             pass
-    except Exception as e:
+    except Exception:
         try:
             proc.stdin.write('q'.encode('utf-8'))
-        except:
+        except Exception:
             pass
         raise BaseException('ffmpeg finish.')
     return True
